@@ -1,0 +1,512 @@
+/* ================================================================
+   BASE
+================================================================ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Helvetica Neue', Arial, 'Hiragino Sans', 'Noto Sans JP', sans-serif;
+  background: #f0f2f5;
+  color: #2c2c2c;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+#app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* ================================================================
+   HEADER
+================================================================ */
+#app-header {
+  background: #12172b;
+  color: #fff;
+  padding: 8px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+#step-indicator {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  background: rgba(255,255,255,0.12);
+  padding: 3px 10px;
+  border-radius: 20px;
+  white-space: nowrap;
+  color: #ccd;
+}
+
+#app-title {
+  font-size: 0.88rem;
+  font-weight: 600;
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#progress-container {
+  width: 100px;
+  height: 5px;
+  background: rgba(255,255,255,0.15);
+  border-radius: 3px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+#progress-bar {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #4FC3F7, #81D4FA);
+  border-radius: 3px;
+  transition: width 0.5s ease;
+}
+
+/* ================================================================
+   CHARTS WRAPPER
+================================================================ */
+#charts-wrapper {
+  background: #fff;
+  padding: 10px 14px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border-bottom: 2px solid #e0e4eb;
+  flex-shrink: 0;
+}
+
+/* ---- Section label row ---- */
+.chart-section-label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #555;
+  margin-bottom: 4px;
+}
+
+.chart-badge {
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  padding: 2px 8px;
+  border-radius: 4px;
+  color: #fff;
+}
+
+.bs-badge { background: #12172b; }
+.pl-badge { background: #7B3F9E; }
+
+.chart-totals {
+  margin-left: auto;
+  font-size: 0.75rem;
+  color: #777;
+  font-weight: 500;
+}
+
+.chart-totals .profit { color: #2e7d32; font-weight: 700; }
+.chart-totals .loss   { color: #c62828; font-weight: 700; }
+
+/* ---- Chart frame ---- */
+.chart-area {
+  display: flex;
+  border: 1px solid #dde1e8;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #f7f8fa;
+}
+
+/* ---- Columns ---- */
+.chart-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+}
+
+#bs-left, #bs-right { height: 300px; }
+#pl-left, #pl-right { height: 220px; }
+
+/* Placeholder when column is all-zero */
+.chart-col.is-empty::after {
+  content: attr(data-empty-label);
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  color: #bbb;
+}
+
+/* ---- Center divider ---- */
+.chart-divider {
+  width: 3px;
+  background: #c8cdd8;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 0;
+  position: relative;
+}
+
+.divider-label {
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: #888;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  letter-spacing: 0.08em;
+  opacity: 0.9;
+}
+
+/* ================================================================
+   ACCOUNT BLOCKS
+================================================================ */
+.account-block {
+  width: 100%;
+  height: 0px;
+  overflow: hidden;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  transition: height 0.65s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Subtle top border between blocks of different categories */
+.account-block.cat-start {
+  border-top: 2px solid rgba(255,255,255,0.45);
+}
+
+.block-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  padding: 4px 6px;
+  pointer-events: none;
+  text-align: center;
+  width: 100%;
+}
+
+.block-name {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+  line-height: 1.2;
+  word-break: break-all;
+}
+
+.block-amount {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: rgba(255,255,255,0.88);
+  text-shadow: 0 1px 2px rgba(0,0,0,0.4);
+  line-height: 1;
+}
+
+/* ---- Negative balance (赤字) styling ---- */
+.account-block.is-negative {
+  background-image: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 4px,
+    rgba(0,0,0,0.12) 4px,
+    rgba(0,0,0,0.12) 8px
+  );
+}
+
+/* ================================================================
+   HIGHLIGHT ANIMATION
+================================================================ */
+@keyframes blockGlow {
+  0%   { filter: brightness(1);   box-shadow: inset 0 0 0 0px rgba(255,255,255,0); }
+  18%  { filter: brightness(1.55); box-shadow: inset 0 0 0 3px rgba(255,255,255,0.9); }
+  72%  { filter: brightness(1.55); box-shadow: inset 0 0 0 3px rgba(255,255,255,0.9); }
+  100% { filter: brightness(1);   box-shadow: inset 0 0 0 0px rgba(255,255,255,0); }
+}
+
+.account-block.highlighted {
+  animation: blockGlow 2.5s ease forwards;
+  z-index: 2;
+}
+
+/* ================================================================
+   EXPLANATION PANEL
+================================================================ */
+#panel {
+  flex: 1;
+  padding: 14px 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  overflow-y: auto;
+}
+
+#panel-step-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+#panel-phase-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  background: #e8f0fe;
+  color: #1a56db;
+  border: 1px solid #c3d7fd;
+  padding: 3px 10px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+
+#panel-step-title {
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: #12172b;
+  line-height: 1.3;
+}
+
+#panel-description {
+  font-size: 0.83rem;
+  line-height: 1.7;
+  color: #444;
+  white-space: pre-line;
+}
+
+/* ---- Changes section ---- */
+.panel-section-title {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #888;
+  margin-bottom: 6px;
+}
+
+#changes-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.81rem;
+}
+
+#changes-table th {
+  background: #f5f6f9;
+  padding: 6px 10px;
+  text-align: left;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #666;
+  border-bottom: 2px solid #e4e7ef;
+}
+
+#changes-table td {
+  padding: 7px 10px;
+  border-bottom: 1px solid #f0f2f7;
+  vertical-align: middle;
+}
+
+.acct-chip {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 4px;
+  color: #fff;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.cat-tag {
+  font-size: 0.72rem;
+  color: #666;
+}
+
+.delta-cell {
+  font-weight: 700;
+  font-size: 0.88rem;
+}
+.delta-cell.pos { color: #1565C0; }
+.delta-cell.neg { color: #c62828; }
+.delta-cell .after-balance {
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: #888;
+  margin-left: 4px;
+}
+
+/* ---- Explanation box ---- */
+#panel-explanation {
+  background: #f0f7ff;
+  border-left: 4px solid #1565C0;
+  border-radius: 0 8px 8px 0;
+  padding: 12px 14px;
+  font-size: 0.81rem;
+  line-height: 1.75;
+  color: #333;
+  white-space: pre-line;
+}
+
+/* ================================================================
+   BUTTONS
+================================================================ */
+#panel-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.btn {
+  flex: 1;
+  padding: 12px 16px;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+  font-family: inherit;
+  letter-spacing: 0.02em;
+}
+
+.btn-execute {
+  background: #1565C0;
+  color: #fff;
+}
+.btn-execute:hover:not(:disabled) {
+  background: #1976D2;
+  transform: translateY(-2px);
+  box-shadow: 0 5px 14px rgba(21,101,192,0.35);
+}
+.btn-execute:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.btn-next {
+  background: #2e7d32;
+  color: #fff;
+}
+.btn-next:hover {
+  background: #388e3c;
+  transform: translateY(-2px);
+  box-shadow: 0 5px 14px rgba(46,125,50,0.35);
+}
+
+/* ================================================================
+   OVERLAYS
+================================================================ */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(18,23,43,0.88);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  backdrop-filter: blur(5px);
+  padding: 20px;
+}
+
+#intro-overlay, #summary-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(18,23,43,0.88);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  backdrop-filter: blur(5px);
+  padding: 20px;
+}
+
+.overlay-card {
+  background: #fff;
+  border-radius: 16px;
+  padding: 30px 24px;
+  max-width: 380px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+}
+
+.overlay-icon {
+  font-size: 2.8rem;
+  line-height: 1;
+}
+
+.overlay-card h1 {
+  font-size: 1.35rem;
+  color: #12172b;
+  line-height: 1.35;
+}
+
+.overlay-card h2 {
+  font-size: 1.25rem;
+  color: #12172b;
+}
+
+.overlay-card p {
+  font-size: 0.84rem;
+  color: #555;
+  line-height: 1.75;
+}
+
+.feature-list {
+  list-style: none;
+  background: #f5f7fb;
+  border-radius: 10px;
+  padding: 12px 18px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  text-align: left;
+}
+
+.feature-list li {
+  font-size: 0.84rem;
+  color: #444;
+}
+
+/* Summary items */
+.summary-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: 10px 0;
+  border-bottom: 1px solid #eee;
+  font-size: 0.88rem;
+}
+
+.summary-item:last-child { border-bottom: none; }
+
+.summary-item strong {
+  font-size: 1rem;
+}
+
+.profit-text { color: #2e7d32; }
+.loss-text   { color: #c62828; }
+
+/* ================================================================
+   UTILITY
+================================================================ */
+.hidden { display: none !important; }
