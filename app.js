@@ -536,7 +536,7 @@ function buildChangesTable(changes) {
   changes.forEach(({ account, delta }) => {
     const meta    = ACCOUNTS[account];
     const balance = state.balances[account] || 0;
-    const sign    = delta > 0 ? '+' : '';
+    const sign    = delta > 0 ? '+' : '▲';
     const cls     = delta > 0 ? 'pos' : 'neg';
 
     const tr = document.createElement('tr');
