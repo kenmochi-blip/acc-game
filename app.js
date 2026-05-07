@@ -1,10 +1,10 @@
 // ================================================================
 // Constants
 // ================================================================
-const BS_HEIGHT        = 300;   // px — height of BS chart columns
-const PL_HEIGHT        = 220;   // px — height of PL chart columns
-const HIGHLIGHT_MS     = 2500;  // ms — highlight glow duration
-const MIN_LABEL_PX     = 26;    // px — minimum height to show text inside a block
+const BS_HEIGHT    = 320;   // px — height of BS chart columns
+const PL_HEIGHT    = 240;   // px — height of PL chart columns
+const HIGHLIGHT_MS = 2500;  // ms — highlight glow duration
+const MIN_LABEL_PX = 26;    // px — minimum block height to show label
 
 // ================================================================
 // State
@@ -14,34 +14,29 @@ function makeInitialBalances() {
 }
 
 let state = {
-  currentStep:   0,
-  stepExecuted:  false,
+  currentStep:     0,
+  stepExecuted:    false,
   changedAccounts: [],
-  balances:      makeInitialBalances(),
+  balances:        makeInitialBalances(),
 };
 
 // ================================================================
-// Ordered account list per column (computed once from ACCOUNTS)
+// Ordered account list per column (computed once)
 // ================================================================
 const COLUMN_KEYS = ['bs-left', 'bs-right', 'pl-left', 'pl-right'];
 
 function getColumnAccounts(colKey) {
   const [section, side] = colKey.split('-');
-  const categoryOrder = CATEGORY_ORDER[colKey];
-  const all = Object.entries(ACCOUNTS)
+  const catOrder = CATEGORY_ORDER[colKey];
+  return Object.entries(ACCOUNTS)
     .filter(([, m]) => m.section === section && m.side === side)
-    .sort((a, b) => a[1].order - b[1].order);
-
-  // Sort by category order, then by 'order' within category
-  return all.sort(([, a], [, b]) => {
-    const catDiff = categoryOrder.indexOf(a.category) - categoryOrder.indexOf(b.category);
-    return catDiff !== 0 ? catDiff : a.order - b.order;
-  });
+    .sort(([, a], [, b]) => {
+      const cd = catOrder.indexOf(a.category) - catOrder.indexOf(b.category);
+      return cd !== 0 ? cd : a.order - b.order;
+    });
 }
 
-const ORDERED_ACCOUNTS = Object.fromEntries(
-  COLUMN_KEYS.map(k => [k, getColumnAccounts(k)])
-);
+const ORDERED = Object.fromEntries(COLUMN_KEYS.map(k => [k, getColumnAccounts(k)]));
 
 // ================================================================
 // DOM References
@@ -65,6 +60,7 @@ document.addEventListener('DOMContentLoaded', () => {
   D.btnNext        = document.getElementById('btn-next');
   D.btnStart       = document.getElementById('btn-start');
   D.btnReset       = document.getElementById('btn-reset');
+  D.btnReplay      = document.getElementById('btn-replay');
   D.summaryBody    = document.getElementById('summary-body');
 
   D.stepTotal.textContent = STEPS.length;
@@ -76,61 +72,54 @@ document.addEventListener('DOMContentLoaded', () => {
   D.btnExecute.addEventListener('click', executeCurrentStep);
   D.btnNext.addEventListener('click', advanceStep);
   D.btnReset.addEventListener('click', resetApp);
+  D.btnReplay.addEventListener('click', replayHighlight);
 });
 
 // ================================================================
-// Build chart DOM  (runs once on load)
+// Build chart DOM (once)
 // ================================================================
 function buildChartDOM() {
   COLUMN_KEYS.forEach(colKey => {
     const container = document.getElementById(colKey);
-    const accounts  = ORDERED_ACCOUNTS[colKey];
-    let prevCategory = null;
-
-    accounts.forEach(([name, meta]) => {
-      const isCatStart = meta.category !== prevCategory;
-      prevCategory = meta.category;
+    let prevCat = null;
+    ORDERED[colKey].forEach(([name, meta]) => {
+      const isCatStart = meta.category !== prevCat;
+      prevCat = meta.category;
 
       const block = document.createElement('div');
       block.className = 'account-block' + (isCatStart ? ' cat-start' : '');
       block.dataset.account = name;
       block.style.backgroundColor = meta.color;
       block.style.height = '0px';
-
       block.innerHTML =
         '<div class="block-inner">' +
           '<span class="block-name">' + name + '</span>' +
           '<span class="block-amount"></span>' +
         '</div>';
-
       container.appendChild(block);
     });
   });
 }
 
 // ================================================================
-// Compute column totals
+// Compute totals
 // ================================================================
 function computeTotals() {
-  const sum = (names) => names.reduce((s, n) => s + (state.balances[n] || 0), 0);
+  const sum = ns => ns.reduce((s, n) => s + (state.balances[n] || 0), 0);
+  const bsL = ORDERED['bs-left'].map(([n]) => n);
+  const bsR = ORDERED['bs-right'].map(([n]) => n);
+  const plL = ORDERED['pl-left'].map(([n]) => n);
+  const plR = ORDERED['pl-right'].map(([n]) => n);
 
-  const bsLeftNames  = ORDERED_ACCOUNTS['bs-left'].map(([n]) => n);
-  const bsRightNames = ORDERED_ACCOUNTS['bs-right'].map(([n]) => n);
-  const plLeftNames  = ORDERED_ACCOUNTS['pl-left'].map(([n]) => n);
-  const plRightNames = ORDERED_ACCOUNTS['pl-right'].map(([n]) => n);
-
-  const bsLeft  = sum(bsLeftNames);
-  // For BS right scale: use positive balances only (negative 利益剰余金 reduces total)
-  const bsRight = bsRightNames.reduce((s, n) => s + (state.balances[n] || 0), 0);
+  const bsLeft  = sum(bsL);
+  const bsRight = bsR.reduce((s, n) => s + (state.balances[n] || 0), 0);
 
   return {
-    bsLeft,
-    bsRight,
-    plLeft:  sum(plLeftNames),
-    plRight: sum(plRightNames),
-    // scale references
+    bsLeft, bsRight,
+    plLeft:  sum(plL),
+    plRight: sum(plR),
     bsScale: Math.max(bsLeft, Math.abs(bsRight), 1),
-    plScale: Math.max(sum(plLeftNames), sum(plRightNames), 1),
+    plScale: Math.max(sum(plL), sum(plR), 1),
   };
 }
 
@@ -141,36 +130,28 @@ function renderCharts() {
   const t = computeTotals();
 
   COLUMN_KEYS.forEach(colKey => {
-    const section = colKey.startsWith('bs') ? 'bs' : 'pl';
-    const scale   = section === 'bs' ? t.bsScale : t.plScale;
-    const maxH    = section === 'bs' ? BS_HEIGHT  : PL_HEIGHT;
-    const accounts = ORDERED_ACCOUNTS[colKey];
+    const isBs     = colKey.startsWith('bs');
+    const scale    = isBs ? t.bsScale : t.plScale;
+    const maxH     = isBs ? BS_HEIGHT  : PL_HEIGHT;
     const container = document.getElementById(colKey);
+    let anyVisible  = false;
 
-    let anyVisible = false;
-
-    accounts.forEach(([name]) => {
+    ORDERED[colKey].forEach(([name]) => {
       const el  = container.querySelector('[data-account="' + name + '"]');
       const val = state.balances[name] || 0;
       const h   = Math.max(0, (Math.abs(val) / scale) * maxH);
 
       el.style.height = h + 'px';
-
-      // Toggle negative class
       el.classList.toggle('is-negative', val < 0);
 
-      // Show/hide inner label
-      const inner  = el.querySelector('.block-inner');
-      const amtEl  = el.querySelector('.block-amount');
+      const inner = el.querySelector('.block-inner');
+      const amtEl = el.querySelector('.block-amount');
 
       if (h >= MIN_LABEL_PX) {
         inner.style.display = 'flex';
-        if (val !== 0) {
-          const prefix = val < 0 ? '▲' : '';
-          amtEl.textContent = prefix + Math.abs(val) + '万円';
-        } else {
-          amtEl.textContent = '';
-        }
+        amtEl.textContent = val !== 0
+          ? (val < 0 ? '▲' : '') + Math.abs(val) + '万円'
+          : '';
         anyVisible = true;
       } else {
         inner.style.display = 'none';
@@ -178,50 +159,37 @@ function renderCharts() {
     });
 
     container.classList.toggle('is-empty', !anyVisible);
-    if (!anyVisible) {
-      const side = colKey.endsWith('left') ? '左' : '右';
-      container.dataset.emptyLabel = '（まだ取引がありません）';
-    }
+    if (!anyVisible) container.dataset.emptyLabel = '（まだ取引がありません）';
   });
 
   updateTotalBadges(t);
 }
 
 function updateTotalBadges(t) {
-  // BS
-  if (t.bsLeft > 0) {
-    D.bsTotals.textContent = '資産合計: ' + t.bsLeft + '万円';
-  } else {
-    D.bsTotals.textContent = '';
-  }
+  D.bsTotals.textContent = t.bsLeft > 0 ? '資産合計: ' + t.bsLeft + '万円' : '';
 
-  // PL
   const net = t.plRight - t.plLeft;
   if (t.plRight > 0 || t.plLeft > 0) {
-    const sign  = net >= 0 ? '黒字' : '赤字';
-    const abs   = Math.abs(net);
-    const prefix = net < 0 ? '▲' : '';
+    const cls = net >= 0 ? 'profit' : 'loss';
+    const word = net >= 0 ? '黒字' : '赤字';
+    const pre  = net < 0 ? '▲' : '';
     D.plTotals.innerHTML =
-      '当期純利益: <span class="' + (net >= 0 ? 'profit' : 'loss') + '">' +
-      prefix + abs + '万円（' + sign + '）</span>';
+      '当期純利益: <span class="' + cls + '">' + pre + Math.abs(net) + '万円（' + word + '）</span>';
   } else {
     D.plTotals.textContent = '';
   }
 }
 
 // ================================================================
-// Auto-recalculate 利益剰余金 to keep BS balanced
-// (retained earnings = revenue - expenses, always)
+// Sync 利益剰余金 to keep BS balanced
 // ================================================================
 function syncRetainedEarnings() {
-  const plLeft  = ORDERED_ACCOUNTS['pl-left'].map(([n]) => n);
-  const plRight = ORDERED_ACCOUNTS['pl-right'].map(([n]) => n);
-  const revenue  = plRight.reduce((s, n) => s + (state.balances[n] || 0), 0);
-  const expenses = plLeft.reduce((s, n) => s + (state.balances[n] || 0), 0);
-  const net = revenue - expenses;
+  const rev = ORDERED['pl-right'].reduce((s, [n]) => s + (state.balances[n] || 0), 0);
+  const exp = ORDERED['pl-left'].reduce((s, [n]) => s + (state.balances[n] || 0), 0);
+  const net  = rev - exp;
   const prev = state.balances['利益剰余金'];
   state.balances['利益剰余金'] = net;
-  return prev !== net; // returns true if changed
+  return prev !== net;
 }
 
 // ================================================================
@@ -240,14 +208,11 @@ function loadStep(id) {
   state.stepExecuted = false;
   state.changedAccounts = [];
 
-  // Header
-  D.stepCurrent.textContent = id;
-  D.progressBar.style.width = ((id - 1) / STEPS.length * 100) + '%';
-
-  // Panel
-  D.phaseBadge.textContent = step.phase;
-  D.stepTitle.textContent  = '取引' + toCircled(id) + ': ' + step.title;
-  D.description.textContent = step.description;
+  D.stepCurrent.textContent  = id;
+  D.progressBar.style.width  = ((id - 1) / STEPS.length * 100) + '%';
+  D.phaseBadge.textContent   = step.phase;
+  D.stepTitle.textContent    = '取引' + toCircled(id) + ': ' + step.title;
+  D.description.textContent  = step.description;
 
   buildChangesTable(step.changes, false);
 
@@ -257,6 +222,7 @@ function loadStep(id) {
   D.btnExecute.classList.remove('hidden');
   D.btnExecute.disabled = false;
   D.btnNext.classList.add('hidden');
+  D.btnReplay.classList.add('hidden');  // 新ステップ開始時は非表示
 }
 
 function executeCurrentStep() {
@@ -286,15 +252,17 @@ function executeCurrentStep() {
   D.btnExecute.classList.add('hidden');
   D.btnNext.classList.remove('hidden');
   D.progressBar.style.width = (state.currentStep / STEPS.length * 100) + '%';
+
+  // ハイライト終了後に「もう一度見る」を表示
+  setTimeout(() => {
+    D.btnReplay.classList.remove('hidden');
+  }, HIGHLIGHT_MS + 200);
 }
 
 function advanceStep() {
   const next = state.currentStep + 1;
-  if (next > STEPS.length) {
-    showSummary();
-  } else {
-    loadStep(next);
-  }
+  if (next > STEPS.length) showSummary();
+  else loadStep(next);
 }
 
 function resetApp() {
@@ -306,9 +274,23 @@ function resetApp() {
   D.summaryOverlay.classList.add('hidden');
   D.progressBar.style.width = '0%';
   D.stepCurrent.textContent = '-';
+  D.btnReplay.classList.add('hidden');
 
   renderCharts();
   loadStep(1);
+}
+
+// ================================================================
+// Replay highlight  ← 「もう一度見る」ボタンの処理
+// ================================================================
+function replayHighlight() {
+  if (state.changedAccounts.length === 0) return;
+  D.btnReplay.classList.add('hidden');
+  highlightBlocks(state.changedAccounts);
+  // アニメーション終了後に再表示
+  setTimeout(() => {
+    D.btnReplay.classList.remove('hidden');
+  }, HIGHLIGHT_MS + 200);
 }
 
 // ================================================================
@@ -319,7 +301,7 @@ function highlightBlocks(names) {
     const el = document.querySelector('[data-account="' + name + '"]');
     if (!el) return;
     el.classList.remove('highlighted');
-    void el.offsetWidth; // force reflow to restart animation
+    void el.offsetWidth; // force reflow
     el.classList.add('highlighted');
   });
 
@@ -340,8 +322,8 @@ function buildChangesTable(changes, executed) {
     const meta    = ACCOUNTS[account];
     const balance = state.balances[account] || 0;
     const sign    = delta > 0 ? '+' : '';
-    const posNeg  = delta > 0 ? 'pos' : 'neg';
-    const afterHtml = executed
+    const cls     = delta > 0 ? 'pos' : 'neg';
+    const after   = executed
       ? '<span class="after-balance">→ ' + balance + '万円</span>'
       : '';
 
@@ -349,14 +331,13 @@ function buildChangesTable(changes, executed) {
     tr.innerHTML =
       '<td><span class="acct-chip" style="background:' + meta.color + '">' + account + '</span></td>' +
       '<td><span class="cat-tag">' + meta.category + '</span></td>' +
-      '<td class="delta-cell ' + posNeg + '">' + sign + delta + '万円' + afterHtml + '</td>';
-
+      '<td class="delta-cell ' + cls + '">' + sign + delta + '万円' + after + '</td>';
     D.changesTbody.appendChild(tr);
   });
 }
 
 // ================================================================
-// Explanation box
+// Explanation
 // ================================================================
 function showExplanation(text) {
   D.explanation.textContent = text;
@@ -364,27 +345,27 @@ function showExplanation(text) {
 }
 
 // ================================================================
-// Summary screen
+// Summary
 // ================================================================
 function showSummary() {
   const t   = computeTotals();
   const net = t.plRight - t.plLeft;
-  const signCls  = net >= 0 ? 'profit-text' : 'loss-text';
-  const signWord = net >= 0 ? '黒字' : '赤字';
-  const prefix   = net < 0 ? '▲' : '';
+  const cls  = net >= 0 ? 'profit-text' : 'loss-text';
+  const word = net >= 0 ? '黒字' : '赤字';
+  const pre  = net < 0 ? '▲' : '';
 
   D.summaryBody.innerHTML =
     '<div class="summary-item"><span>総資産</span><strong>' + t.bsLeft + '万円</strong></div>' +
     '<div class="summary-item"><span>当期純利益</span>' +
-    '<strong class="' + signCls + '">' + prefix + Math.abs(net) + '万円（' + signWord + '）</strong></div>';
+    '<strong class="' + cls + '">' + pre + Math.abs(net) + '万円（' + word + '）</strong></div>';
 
   D.summaryOverlay.classList.remove('hidden');
 }
 
 // ================================================================
-// Utilities
+// Utility
 // ================================================================
 function toCircled(n) {
-  const chars = ['①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩','⑪','⑫','⑬','⑭','⑮'];
-  return chars[n - 1] || String(n);
+  const c = ['①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩','⑪','⑫','⑬','⑭','⑮'];
+  return c[n - 1] || String(n);
 }

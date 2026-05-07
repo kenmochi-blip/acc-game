@@ -10,84 +10,90 @@
 
 <div id="app">
 
-  <!-- ========== HEADER ========== -->
+  <!-- ========== HEADER (full width) ========== -->
   <header id="app-header">
     <div id="step-indicator">STEP <span id="step-current">-</span> / <span id="step-total">-</span></div>
     <h1 id="app-title">カフェ経営会計シミュレーション</h1>
     <div id="progress-container"><div id="progress-bar"></div></div>
   </header>
 
-  <!-- ========== CHARTS ========== -->
-  <div id="charts-wrapper">
+  <!-- ========== MAIN: left panel + right charts ========== -->
+  <div id="main-content">
 
-    <!-- BS Chart -->
-    <div class="chart-section">
-      <div class="chart-section-label">
-        <span class="chart-badge bs-badge">BS</span>
-        貸借対照表
-        <span class="chart-totals" id="bs-totals"></span>
+    <!-- ── LEFT: テキスト・操作パネル ── -->
+    <div id="panel">
+
+      <div id="panel-step-header">
+        <span id="panel-phase-badge">開業準備</span>
+        <h2 id="panel-step-title"></h2>
       </div>
-      <div class="chart-area" id="bs-chart">
-        <div class="chart-col" id="bs-left"></div>
-        <div class="chart-divider">
-          <span class="divider-label top">資産</span>
-          <span class="divider-label bottom">負債・純資産</span>
+
+      <p id="panel-description"></p>
+
+      <div id="panel-changes">
+        <div class="panel-section-title">変動する勘定科目</div>
+        <table id="changes-table">
+          <thead>
+            <tr><th>勘定科目</th><th>分類</th><th>変化</th></tr>
+          </thead>
+          <tbody id="changes-tbody"></tbody>
+        </table>
+      </div>
+
+      <div id="panel-explanation" class="hidden"></div>
+
+      <div id="panel-buttons">
+        <button id="btn-execute" class="btn btn-execute">実行する</button>
+        <button id="btn-next"    class="btn btn-next hidden">次のステップへ →</button>
+      </div>
+
+    </div><!-- /panel -->
+
+    <!-- ── RIGHT: グラフエリア ── -->
+    <div id="charts-wrapper">
+
+      <!-- リプレイボタン -->
+      <div id="charts-toolbar">
+        <button id="btn-replay" class="btn-replay hidden">↺ もう一度見る</button>
+      </div>
+
+      <!-- BS Chart (上) -->
+      <div class="chart-section">
+        <div class="chart-section-label">
+          <span class="chart-badge bs-badge">BS</span>
+          貸借対照表
+          <span class="chart-totals" id="bs-totals"></span>
         </div>
-        <div class="chart-col" id="bs-right"></div>
-      </div>
-    </div>
-
-    <!-- PL Chart -->
-    <div class="chart-section">
-      <div class="chart-section-label">
-        <span class="chart-badge pl-badge">PL</span>
-        損益計算書
-        <span class="chart-totals" id="pl-totals"></span>
-      </div>
-      <div class="chart-area" id="pl-chart">
-        <div class="chart-col" id="pl-left"></div>
-        <div class="chart-divider">
-          <span class="divider-label top">費用</span>
-          <span class="divider-label bottom">収益</span>
+        <div class="chart-area" id="bs-chart">
+          <div class="chart-col" id="bs-left"></div>
+          <div class="chart-divider">
+            <span class="divider-label top">資産</span>
+            <span class="divider-label bottom">負債・純資産</span>
+          </div>
+          <div class="chart-col" id="bs-right"></div>
         </div>
-        <div class="chart-col" id="pl-right"></div>
       </div>
-    </div>
 
-  </div><!-- /charts-wrapper -->
+      <!-- PL Chart (下) -->
+      <div class="chart-section">
+        <div class="chart-section-label">
+          <span class="chart-badge pl-badge">PL</span>
+          損益計算書
+          <span class="chart-totals" id="pl-totals"></span>
+        </div>
+        <div class="chart-area" id="pl-chart">
+          <div class="chart-col" id="pl-left"></div>
+          <div class="chart-divider">
+            <span class="divider-label top">費用</span>
+            <span class="divider-label bottom">収益</span>
+          </div>
+          <div class="chart-col" id="pl-right"></div>
+        </div>
+      </div>
 
-  <!-- ========== EXPLANATION PANEL ========== -->
-  <div id="panel">
+    </div><!-- /charts-wrapper -->
 
-    <div id="panel-step-header">
-      <span id="panel-phase-badge">開業準備</span>
-      <h2 id="panel-step-title"></h2>
-    </div>
-
-    <p id="panel-description"></p>
-
-    <div id="panel-changes">
-      <div class="panel-section-title">変動する勘定科目</div>
-      <table id="changes-table">
-        <thead>
-          <tr>
-            <th>勘定科目</th>
-            <th>分類</th>
-            <th>変化</th>
-          </tr>
-        </thead>
-        <tbody id="changes-tbody"></tbody>
-      </table>
-    </div>
-
-    <div id="panel-explanation" class="hidden"></div>
-
-    <div id="panel-buttons">
-      <button id="btn-execute" class="btn btn-execute">実行する</button>
-      <button id="btn-next"    class="btn btn-next hidden">次のステップへ →</button>
-    </div>
-
-  </div><!-- /panel -->
+  </div><!-- /main-content -->
 
 </div><!-- /app -->
 
