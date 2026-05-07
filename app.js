@@ -1,8 +1,8 @@
 // ================================================================
 // Constants
 // ================================================================
-const BS_HEIGHT    = 320;   // px — height of BS chart columns
-const PL_HEIGHT    = 240;   // px — height of PL chart columns
+let BS_HEIGHT    = 320;   // px — read from DOM after layout
+let PL_HEIGHT    = 240;   // px — read from DOM after layout
 const HIGHLIGHT_MS = 2500;  // ms — highlight glow duration
 const MIN_LABEL_PX = 26;    // px — minimum block height to show label
 
@@ -18,6 +18,7 @@ let state = {
   stepExecuted:    false,
   changedAccounts: [],
   balances:        makeInitialBalances(),
+  prevBalances:    null,
 };
 
 // ================================================================
@@ -66,6 +67,9 @@ document.addEventListener('DOMContentLoaded', () => {
   D.stepTotal.textContent = STEPS.length;
 
   buildChartDOM();
+  // Read actual rendered heights so proportions match CSS flex layout
+  BS_HEIGHT = document.getElementById('bs-left').clientHeight || 320;
+  PL_HEIGHT = document.getElementById('pl-left').clientHeight || 240;
   renderCharts();
 
   D.btnStart.addEventListener('click', startApp);
@@ -230,6 +234,8 @@ function executeCurrentStep() {
   const step = STEPS.find(s => s.id === state.currentStep);
   if (!step) return;
 
+  // Save state before changes for replay animation
+  state.prevBalances = {...state.balances};
   state.changedAccounts = [];
 
   step.changes.forEach(({ account, delta }) => {
@@ -270,6 +276,7 @@ function resetApp() {
   state.currentStep = 0;
   state.stepExecuted = false;
   state.changedAccounts = [];
+  state.prevBalances = null;
 
   D.summaryOverlay.classList.add('hidden');
   D.progressBar.style.width = '0%';
@@ -284,13 +291,29 @@ function resetApp() {
 // Replay highlight  ← 「もう一度見る」ボタンの処理
 // ================================================================
 function replayHighlight() {
-  if (state.changedAccounts.length === 0) return;
+  if (!state.prevBalances || state.changedAccounts.length === 0) return;
   D.btnReplay.classList.add('hidden');
-  highlightBlocks(state.changedAccounts);
-  // アニメーション終了後に再表示
-  setTimeout(() => {
-    D.btnReplay.classList.remove('hidden');
-  }, HIGHLIGHT_MS + 200);
+
+  const savedBalances = {...state.balances};
+
+  // 1. Disable transitions and snap back to pre-step state
+  const allBlocks = document.querySelectorAll('.account-block');
+  allBlocks.forEach(el => { el.style.transition = 'none'; });
+  state.balances = {...state.prevBalances};
+  renderCharts();
+
+  // 2. Re-enable transitions and animate forward to current state
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      allBlocks.forEach(el => { el.style.transition = ''; });
+      state.balances = savedBalances;
+      renderCharts();
+      highlightBlocks(state.changedAccounts);
+      setTimeout(() => {
+        D.btnReplay.classList.remove('hidden');
+      }, HIGHLIGHT_MS + 200);
+    });
+  });
 }
 
 // ================================================================

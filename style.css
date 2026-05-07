@@ -242,9 +242,9 @@ html, body {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  padding: 14px 18px 18px;
-  overflow-y: auto;
+  gap: 6px;
+  padding: 8px 18px 10px;
+  overflow-y: hidden;
   background: #f0f2f5;
 }
 
@@ -281,7 +281,9 @@ html, body {
 .chart-section {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
+  flex: 1;
+  min-height: 0;
 }
 
 .chart-section-label {
@@ -317,6 +319,8 @@ html, body {
 /* ---- Chart frame ---- */
 .chart-area {
   display: flex;
+  flex: 1;
+  min-height: 0;
   border: 1px solid #dde1e8;
   border-radius: 8px;
   overflow: hidden;
@@ -333,8 +337,8 @@ html, body {
   overflow: hidden;
 }
 
-#bs-left,  #bs-right  { height: 320px; }
-#pl-left,  #pl-right  { height: 240px; }
+#bs-left,  #bs-right  { height: 100%; }
+#pl-left,  #pl-right  { height: 100%; }
 
 .chart-col.is-empty::after {
   content: attr(data-empty-label);
@@ -520,8 +524,10 @@ html, body {
 @media (max-width: 768px) {
   #main-content { flex-direction: column; overflow-y: auto; }
   #panel { width: 100%; border-right: none; border-bottom: 2px solid #e0e4eb; overflow-y: visible; }
-  #charts-wrapper { overflow-y: visible; }
-  #bs-left, #bs-right { height: 240px; }
-  #pl-left, #pl-right { height: 180px; }
+  #charts-wrapper { overflow-y: auto; flex: none; }
+  .chart-section { flex: none; }
+  .chart-area { flex: none; }
+  #bs-left, #bs-right { height: 200px; }
+  #pl-left, #pl-right { height: 160px; }
   #panel-buttons { margin-top: 0; }
 }
