@@ -419,8 +419,7 @@ html, body {
   align-items: center;
   justify-content: center;
   position: relative;
-  transition: height 0.65s cubic-bezier(0.4, 0, 0.2, 1),
-              min-height 0.65s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: height 0.65s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .account-block.cat-start {

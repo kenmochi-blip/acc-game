@@ -1,10 +1,11 @@
 // ================================================================
 // Constants
 // ================================================================
-const BS_HEIGHT    = 320;   // px fallback if DOM not ready
-const PL_HEIGHT    = 240;   // px fallback
-const HIGHLIGHT_MS = 2000;  // ms — glow duration per block
-const STAGGER_MS   = 550;   // ms — delay between each account animation
+const BS_HEIGHT    = 320;  // px fallback if DOM not ready
+const PL_HEIGHT    = 240;  // px fallback
+const HIGHLIGHT_MS = 2000; // ms — glow duration per block
+const STAGGER_MS   = 550;  // ms — delay between each account animation
+const MIN_BLOCK_PX = 26;   // px — minimum height for non-zero balance blocks
 
 // ================================================================
 // State
@@ -19,7 +20,8 @@ let state = {
   changedAccounts: [],
   balances:        makeInitialBalances(),
   prevBalances:    null,
-  snapshots:       {},
+  snapshots:       {},   // id → balances (after step executed)
+  stepSnapshots:   {},   // id → { balances, changedAccounts, prevBalances }
 };
 
 // ================================================================
@@ -110,7 +112,7 @@ function buildChartDOM() {
 }
 
 // ================================================================
-// Compute totals
+// Compute totals (always from state.balances)
 // ================================================================
 function computeTotals() {
   const sum = ns => ns.reduce((s, n) => s + (state.balances[n] || 0), 0);
@@ -120,24 +122,52 @@ function computeTotals() {
   const plR = ORDERED['pl-right'].map(([n]) => n);
 
   const bsLeft  = sum(bsL);
-  const bsRight = bsR.reduce((s, n) => s + (state.balances[n] || 0), 0);
+  const bsRight = Math.abs(bsR.reduce((s, n) => s + (state.balances[n] || 0), 0));
 
   return {
     bsLeft, bsRight,
     plLeft:  sum(plL),
     plRight: sum(plR),
-    bsScale: Math.max(bsLeft, Math.abs(bsRight), 1),
+    bsScale: Math.max(bsLeft, bsRight, 1),
     plScale: Math.max(sum(plL), sum(plR), 1),
   };
 }
 
 // ================================================================
-// Render charts
+// Compute block heights for one column, ensuring small non-zero
+// balances get minimum visibility without overflowing the container.
 // ================================================================
-function renderCharts() {
-  const t = computeTotals();
+function computeBlockHeights(colKey, scale, maxH) {
+  const entries = ORDERED[colKey].map(([name]) => {
+    const val  = state.balances[name] || 0;
+    const rawH = val !== 0 ? Math.max(0, (Math.abs(val) / scale) * maxH) : 0;
+    return { name, val, rawH };
+  });
 
-  // Use actual rendered column height for correct proportions
+  // Split into blocks that need a minimum-height boost vs. normal blocks
+  const boostedEntries = entries.filter(e => e.val !== 0 && e.rawH < MIN_BLOCK_PX);
+  const normalEntries  = entries.filter(e => e.val === 0  || e.rawH >= MIN_BLOCK_PX);
+
+  const boostedTotal  = boostedEntries.length * MIN_BLOCK_PX;
+  const normalRawSum  = normalEntries.reduce((s, e) => s + e.rawH, 0);
+  const availableH    = Math.max(0, maxH - boostedTotal);
+  const scaleFactor   = normalRawSum > 0 ? availableH / normalRawSum : 1;
+
+  const boostedSet = new Set(boostedEntries.map(e => e.name));
+  const result = {};
+  entries.forEach(e => {
+    if (e.val === 0)          result[e.name] = 0;
+    else if (boostedSet.has(e.name)) result[e.name] = MIN_BLOCK_PX;
+    else                      result[e.name] = e.rawH * scaleFactor;
+  });
+  return result;
+}
+
+// ================================================================
+// Core render: draws chart using state.balances and the provided
+// totals (scale). Pass updateBadges=false during pre-animation setup.
+// ================================================================
+function renderChartsWithTotals(t, updateBadges) {
   const bsColEl = document.getElementById('bs-left');
   const plColEl = document.getElementById('pl-left');
   const bsH = (bsColEl && bsColEl.clientHeight) || BS_HEIGHT;
@@ -148,16 +178,17 @@ function renderCharts() {
     const scale     = isBs ? t.bsScale : t.plScale;
     const maxH      = isBs ? bsH : plH;
     const container = document.getElementById(colKey);
-    let anyVisible  = false;
+
+    const heights  = computeBlockHeights(colKey, scale, maxH);
+    let anyVisible = false;
 
     ORDERED[colKey].forEach(([name]) => {
       const el  = container.querySelector('[data-account="' + name + '"]');
       const val = state.balances[name] || 0;
-      const h   = Math.max(0, (Math.abs(val) / scale) * maxH);
+      const h   = heights[name];
 
-      el.style.height = h + 'px';
-      // Always reserve at least one text-line height when balance is non-zero
-      el.style.minHeight = val !== 0 ? '26px' : '0px';
+      el.style.height    = h + 'px';
+      el.style.minHeight = '0px'; // managed by computeBlockHeights, not CSS
       el.classList.toggle('is-negative', val < 0);
 
       const inner = el.querySelector('.block-inner');
@@ -176,7 +207,12 @@ function renderCharts() {
     if (!anyVisible) container.dataset.emptyLabel = '（まだ取引がありません）';
   });
 
-  updateTotalBadges(t);
+  if (updateBadges !== false) updateTotalBadges(t);
+}
+
+function renderCharts() {
+  const t = computeTotals();
+  renderChartsWithTotals(t, true);
 }
 
 function updateTotalBadges(t) {
@@ -198,8 +234,8 @@ function updateTotalBadges(t) {
 // Sync 利益剰余金 to keep BS balanced
 // ================================================================
 function syncRetainedEarnings() {
-  const rev = ORDERED['pl-right'].reduce((s, [n]) => s + (state.balances[n] || 0), 0);
-  const exp = ORDERED['pl-left'].reduce((s, [n]) => s + (state.balances[n] || 0), 0);
+  const rev  = ORDERED['pl-right'].reduce((s, [n]) => s + (state.balances[n] || 0), 0);
+  const exp  = ORDERED['pl-left'].reduce((s, [n]) => s + (state.balances[n] || 0), 0);
   const net  = rev - exp;
   const prev = state.balances['利益剰余金'];
   state.balances['利益剰余金'] = net;
@@ -210,21 +246,20 @@ function syncRetainedEarnings() {
 // Animation helpers
 // ================================================================
 
-// Put 利益剰余金 last in the animation sequence
+// 利益剰余金 always animates last
 function sortForAnimation(names) {
   const main = names.filter(n => n !== '利益剰余金');
   if (names.includes('利益剰余金')) main.push('利益剰余金');
   return main;
 }
 
-// Apply CSS transition-delay per account so each animates in sequence
+// Apply CSS transition-delay per block so each animates in sequence
 function applyStaggeredDelays(sortedNames) {
   sortedNames.forEach((name, i) => {
     const el = document.querySelector('[data-account="' + name + '"]');
     if (el) el.style.transitionDelay = (i * STAGGER_MS) + 'ms';
   });
 
-  // Remove delays once all transitions finish
   const clearAfter = sortedNames.length * STAGGER_MS + 800;
   setTimeout(() => {
     sortedNames.forEach(name => {
@@ -234,7 +269,7 @@ function applyStaggeredDelays(sortedNames) {
   }, clearAfter);
 }
 
-// Staggered glow highlight — returns total animation duration ms
+// Staggered glow highlight — returns total animation duration in ms
 function highlightBlocksStaggered(names) {
   const sorted = sortForAnimation(names);
 
@@ -259,6 +294,35 @@ function highlightBlocksStaggered(names) {
   return totalDuration;
 }
 
+// Run the forward animation (old→new balances) at the provided scale.
+// Disables transitions first, snaps to prev state, then re-enables + staggers.
+function runForwardAnimation(prevBal, newBal, newTotals, changedAccounts, onComplete) {
+  const allBlocks = document.querySelectorAll('.account-block');
+
+  // 1. Disable transitions, snap to starting heights (old balances at new scale)
+  allBlocks.forEach(el => {
+    el.style.transition      = 'none';
+    el.style.transitionDelay = '';
+  });
+  state.balances = {...prevBal};
+  renderChartsWithTotals(newTotals, false);
+
+  // 2. Two rAF to flush style changes, then animate to new state
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      allBlocks.forEach(el => { el.style.transition = ''; });
+      state.balances = {...newBal};
+
+      const sorted = sortForAnimation(changedAccounts);
+      applyStaggeredDelays(sorted);
+      renderChartsWithTotals(newTotals, false);
+
+      const totalDuration = highlightBlocksStaggered(changedAccounts);
+      if (onComplete) setTimeout(onComplete, totalDuration + 200);
+    });
+  });
+}
+
 // ================================================================
 // App lifecycle
 // ================================================================
@@ -281,20 +345,45 @@ function loadStep(id) {
   D.stepTitle.textContent   = '取引' + toCircled(id) + ': ' + step.title;
   D.description.textContent = step.description;
 
-  // Hide changes table and explanation — revealed only after execution
+  // Hide changes + explanation until execution
   D.panelChanges.classList.add('hidden');
   D.panelExplainSection.classList.add('hidden');
   D.explanation.classList.add('hidden');
   D.explanation.textContent = '';
   D.btnExplain.textContent  = '解説を見る ▼';
 
-  // Button state
   D.btnExecute.classList.remove('hidden');
   D.btnExecute.disabled = false;
   D.btnNext.classList.add('hidden');
   D.btnReplay.classList.add('hidden');
+  D.btnPrev.classList.toggle('hidden', id <= 1);
+}
 
-  // Show prev button only when not at first step
+// Show a step that has already been executed (used by back button)
+function loadStepExecuted(id) {
+  const step = STEPS.find(s => s.id === id);
+  if (!step) return;
+
+  state.currentStep  = id;
+  state.stepExecuted = true;
+
+  D.stepCurrent.textContent = id;
+  D.progressBar.style.width = (id / STEPS.length * 100) + '%';
+  D.phaseBadge.textContent  = step.phase;
+  D.stepTitle.textContent   = '取引' + toCircled(id) + ': ' + step.title;
+  D.description.textContent = step.description;
+
+  buildChangesTable(step.changes);
+  D.panelChanges.classList.remove('hidden');
+
+  D.explanation.textContent = step.explanation;
+  D.explanation.classList.add('hidden');
+  D.btnExplain.textContent  = '解説を見る ▼';
+  D.panelExplainSection.classList.remove('hidden');
+
+  D.btnExecute.classList.add('hidden');
+  D.btnNext.classList.remove('hidden');
+  D.btnReplay.classList.remove('hidden');
   D.btnPrev.classList.toggle('hidden', id <= 1);
 }
 
@@ -303,7 +392,7 @@ function executeCurrentStep() {
   const step = STEPS.find(s => s.id === state.currentStep);
   if (!step) return;
 
-  // Save pre-execution state for replay animation
+  // Save pre-execution state
   state.prevBalances    = {...state.balances};
   state.changedAccounts = [];
 
@@ -319,37 +408,35 @@ function executeCurrentStep() {
     state.changedAccounts.push('利益剰余金');
   }
 
-  // Snapshot after this step for back-navigation
-  state.snapshots[state.currentStep] = {...state.balances};
+  // Snapshot the new state for back-navigation
+  const newBalances = {...state.balances};
+  state.snapshots[state.currentStep] = newBalances;
+  state.stepSnapshots[state.currentStep] = {
+    balances:       newBalances,
+    changedAccounts: [...state.changedAccounts],
+    prevBalances:   {...state.prevBalances},
+  };
   state.stepExecuted = true;
 
-  // Stagger the height transitions, then render all at once
-  const sorted = sortForAnimation(state.changedAccounts);
-  applyStaggeredDelays(sorted);
-  renderCharts();
+  // Compute scale from new balances (kept in state.balances = newBalances)
+  const newTotals = computeTotals();
 
-  // Staggered glow on top of the height animation
-  const totalDuration = highlightBlocksStaggered(state.changedAccounts);
-
-  // Reveal changes table
+  // Update badges and UI immediately with new totals
+  updateTotalBadges(newTotals);
   buildChangesTable(step.changes);
   D.panelChanges.classList.remove('hidden');
-
-  // Reveal explanation toggle (explanation text hidden until user taps)
   D.explanation.textContent = step.explanation;
   D.panelExplainSection.classList.remove('hidden');
-
-  // Swap buttons; hide prev during animation
   D.btnExecute.classList.add('hidden');
   D.btnNext.classList.remove('hidden');
-  D.btnPrev.classList.add('hidden');
+  D.btnPrev.classList.add('hidden'); // hidden during animation
   D.progressBar.style.width = (state.currentStep / STEPS.length * 100) + '%';
 
-  // After all animations: show replay + prev
-  setTimeout(() => {
+  // Animate: start from old balances rendered at NEW scale → grow to new balances
+  runForwardAnimation(state.prevBalances, newBalances, newTotals, state.changedAccounts, () => {
     D.btnReplay.classList.remove('hidden');
     if (state.currentStep > 1) D.btnPrev.classList.remove('hidden');
-  }, totalDuration + 200);
+  });
 }
 
 function advanceStep() {
@@ -362,17 +449,21 @@ function goToPrevStep() {
   const prevId = state.currentStep - 1;
   if (prevId < 1) return;
 
-  // Restore balances to the state before prevId was executed
-  state.balances = prevId >= 2
-    ? {...state.snapshots[prevId - 1]}
-    : makeInitialBalances();
+  const snap = state.stepSnapshots[prevId];
+  if (!snap) return; // step was never executed
 
-  // Clear any leftover delays, then animate back
+  // Restore to the END state of the previous step
+  state.balances        = {...snap.balances};
+  state.prevBalances    = {...snap.prevBalances};
+  state.changedAccounts = [...snap.changedAccounts];
+
+  // Clear any leftover transition delays, then animate chart to restored state
   document.querySelectorAll('.account-block').forEach(el => {
     el.style.transitionDelay = '';
   });
   renderCharts();
-  loadStep(prevId);
+
+  loadStepExecuted(prevId);
 }
 
 function resetApp() {
@@ -382,6 +473,7 @@ function resetApp() {
   state.changedAccounts = [];
   state.prevBalances    = null;
   state.snapshots       = {};
+  state.stepSnapshots   = {};
 
   D.summaryOverlay.classList.add('hidden');
   D.progressBar.style.width = '0%';
@@ -393,40 +485,20 @@ function resetApp() {
 }
 
 // ================================================================
-// Replay: animate from pre-execution state to current state
+// Replay: animate from pre-execution state to current state,
+// starting heights at the current (new) scale so change is visible
 // ================================================================
 function replayHighlight() {
   if (!state.prevBalances || state.changedAccounts.length === 0) return;
   D.btnReplay.classList.add('hidden');
   D.btnPrev.classList.add('hidden');
 
-  const allBlocks   = document.querySelectorAll('.account-block');
-  const savedBalances = {...state.balances};
+  const newBalances = {...state.balances};
+  const newTotals   = computeTotals(); // computed with current state.balances
 
-  // 1. Disable transitions, snap to previous state instantly
-  allBlocks.forEach(el => {
-    el.style.transition      = 'none';
-    el.style.transitionDelay = '';
-  });
-  state.balances = {...state.prevBalances};
-  renderCharts();
-
-  // 2. Two rAF to flush styles, then re-enable and animate forward
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      allBlocks.forEach(el => { el.style.transition = ''; });
-      state.balances = savedBalances;
-
-      const sorted = sortForAnimation(state.changedAccounts);
-      applyStaggeredDelays(sorted);
-      renderCharts();
-      const totalDuration = highlightBlocksStaggered(state.changedAccounts);
-
-      setTimeout(() => {
-        D.btnReplay.classList.remove('hidden');
-        if (state.currentStep > 1) D.btnPrev.classList.remove('hidden');
-      }, totalDuration + 200);
-    });
+  runForwardAnimation(state.prevBalances, newBalances, newTotals, state.changedAccounts, () => {
+    D.btnReplay.classList.remove('hidden');
+    if (state.currentStep > 1) D.btnPrev.classList.remove('hidden');
   });
 }
 
@@ -440,7 +512,7 @@ function toggleExplanation() {
 }
 
 // ================================================================
-// Changes table (shown after execution with final balances)
+// Changes table
 // ================================================================
 function buildChangesTable(changes) {
   D.changesTbody.innerHTML = '';
