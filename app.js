@@ -220,10 +220,8 @@ function renderChartsWithTotals(t, updateBadges) {
     if (!anyVisible) container.dataset.emptyLabel = '（まだ取引がありません）';
   });
 
-  if (updateBadges !== false) {
-    updateTotalBadges(t);
-    renderStatements();
-  }
+  if (updateBadges !== false) updateTotalBadges(t);
+  if (updateBadges === true) renderStatements();
 }
 
 function renderCharts() {
@@ -453,6 +451,7 @@ function executeCurrentStep() {
   runForwardAnimation(state.prevBalances, newBalances, newTotals, state.changedAccounts, () => {
     D.btnReplay.classList.remove('hidden');
     if (state.currentStep > 1) D.btnPrev.classList.remove('hidden');
+    renderStatements(); // refresh with confirmed final state
   });
 }
 
@@ -516,6 +515,7 @@ function replayHighlight() {
   runForwardAnimation(state.prevBalances, newBalances, newTotals, state.changedAccounts, () => {
     D.btnReplay.classList.remove('hidden');
     if (state.currentStep > 1) D.btnPrev.classList.remove('hidden');
+    renderStatements();
   });
 }
 
