@@ -559,7 +559,7 @@ html, body {
    RIGHT-2: FINANCIAL STATEMENTS (traditional style)
 ================================================================ */
 #statements {
-  width: 280px;
+  width: 320px;
   flex-shrink: 0;
   background: #fff;
   border-left: 2px solid #e0e4eb;
@@ -604,8 +604,16 @@ html, body {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  min-width: 0;
   overflow: hidden;
+}
+
+.stmt-bs-items {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 0;
 }
 
 .stmt-bs-divider {
@@ -613,6 +621,25 @@ html, body {
   background: #c8cdd8;
   flex-shrink: 0;
   margin: 0 4px;
+}
+
+.stmt-bs-sub {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 3px 0 2px;
+  border-top: 1px solid #aaa;
+  margin-top: 3px;
+  font-size: 0.73rem;
+  font-weight: 700;
+  color: #333;
+}
+
+.stmt-liab-eq-sep {
+  height: 3px;
+  background: #c8cdd8;
+  margin: 5px 0;
+  border-radius: 1px;
 }
 
 .stmt-cat {
@@ -661,6 +688,7 @@ html, body {
   font-size: 0.76rem;
   font-weight: 700;
   color: #222;
+  flex-shrink: 0;
 }
 
 /* PL 報告式 */
@@ -741,6 +769,6 @@ html, body {
   .chart-area { flex: none; }
   #bs-left, #bs-right { height: 200px; }
   #pl-left, #pl-right { height: 160px; }
-  #statements { width: 100%; border-left: none; border-top: 2px solid #e0e4eb; }
+  #statements { width: 100%; border-left: none; border-top: 2px solid #e0e4eb; min-height: 200px; }
   .stmt-bs { min-height: 60px; }
 }

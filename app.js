@@ -209,7 +209,7 @@ function renderChartsWithTotals(t, updateBadges) {
 
       if (val !== 0) {
         inner.style.display = 'flex';
-        amtEl.textContent = (val < 0 ? '▲' : '') + Math.abs(val) + '万円';
+        amtEl.textContent = (val < 0 ? '▲' : '') + fmtNum(Math.abs(val)) + '万円';
         anyVisible = true;
       } else {
         inner.style.display = 'none';
@@ -230,7 +230,7 @@ function renderCharts() {
 }
 
 function updateTotalBadges(t) {
-  D.bsTotals.textContent = t.bsLeft > 0 ? '資産合計: ' + t.bsLeft + '万円' : '';
+  D.bsTotals.textContent = t.bsLeft > 0 ? '資産合計: ' + fmtNum(t.bsLeft) + '万円' : '';
 
   const net = t.plRight - t.plLeft;
   if (t.plRight > 0 || t.plLeft > 0) {
@@ -238,7 +238,7 @@ function updateTotalBadges(t) {
     const word = net >= 0 ? '黒字' : '赤字';
     const pre  = net < 0 ? '▲' : '';
     D.plTotals.innerHTML =
-      '当期純利益: <span class="' + cls + '">' + pre + Math.abs(net) + '万円（' + word + '）</span>';
+      '当期純利益: <span class="' + cls + '">' + pre + fmtNum(Math.abs(net)) + '万円（' + word + '）</span>';
   } else {
     D.plTotals.textContent = '';
   }
@@ -543,8 +543,8 @@ function buildChangesTable(changes) {
     tr.innerHTML =
       '<td><span class="acct-chip" style="background:' + meta.color + '">' + account + '</span></td>' +
       '<td><span class="cat-tag">' + meta.category + '</span></td>' +
-      '<td class="delta-cell ' + cls + '">' + sign + delta + '万円' +
-        '<span class="after-balance">→ ' + balance + '万円</span>' +
+      '<td class="delta-cell ' + cls + '">' + sign + fmtNum(Math.abs(delta)) + '万円' +
+        '<span class="after-balance">→ ' + (balance < 0 ? '▲' : '') + fmtNum(Math.abs(balance)) + '万円</span>' +
       '</td>';
     D.changesTbody.appendChild(tr);
   });
@@ -559,47 +559,70 @@ function renderStatements() {
   renderPLStatement();
 }
 
+function fmtNum(n) {
+  return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+
 function fmtAmt(val) {
   if (val === 0) return '—';
-  return (val < 0 ? '▲' : '') + Math.abs(val) + '万';
+  return (val < 0 ? '▲' : '') + fmtNum(Math.abs(val)) + '万';
 }
 
 function renderBSStatement() {
-  const leftGroups  = [
+  const assetGroups = [
     { label: '【流動資産】', accounts: ['現金預金', '売掛金', '商品'] },
     { label: '【固定資産】', accounts: ['建物付属設備', '備品', '保証金'] },
   ];
-  const rightGroups = [
+  const liabGroups = [
     { label: '【流動負債】', accounts: ['買掛金', '未払金'] },
     { label: '【固定負債】', accounts: ['長期借入金'] },
-    { label: '【純資産】',   accounts: ['資本金', '利益剰余金'] },
   ];
+  const equityGroup = { label: '【純資産】', accounts: ['資本金', '利益剰余金'] };
 
-  function buildCol(groups) {
-    let html = '';
-    let total = 0;
-    groups.forEach(g => {
+  function buildGroups(groups) {
+    let html = '', subtotal = 0;
+    (Array.isArray(groups) ? groups : [groups]).forEach(g => {
       const nonZero = g.accounts.filter(a => state.balances[a] !== 0);
       if (nonZero.length === 0) return;
       html += '<div class="stmt-cat">' + g.label + '</div>';
       nonZero.forEach(a => {
         const v = state.balances[a];
-        const cls = v < 0 ? ' neg' : '';
         html += '<div class="stmt-row">' +
           '<span class="stmt-row-name">' + a + '</span>' +
-          '<span class="stmt-row-amount' + cls + '">' + fmtAmt(v) + '</span>' +
+          '<span class="stmt-row-amount' + (v < 0 ? ' neg' : '') + '">' + fmtAmt(v) + '</span>' +
           '</div>';
-        total += v;
+        subtotal += v;
       });
     });
-    if (total !== 0) {
-      html += '<div class="stmt-total"><span>合計</span><span>' + total + '万</span></div>';
-    }
-    return html || '<div class="stmt-empty">—</div>';
+    return { html, subtotal };
   }
 
-  D.stmtBsLeft.innerHTML  = buildCol(leftGroups);
-  D.stmtBsRight.innerHTML = buildCol(rightGroups);
+  // Left: assets
+  const { html: assetHtml, subtotal: assetTotal } = buildGroups(assetGroups);
+  D.stmtBsLeft.innerHTML =
+    '<div class="stmt-bs-items">' + (assetHtml || '<div class="stmt-empty">—</div>') + '</div>' +
+    '<div class="stmt-total"><span>資産合計</span><span>' + (assetTotal ? fmtAmt(assetTotal) : '—') + '</span></div>';
+
+  // Right: liabilities + equity, with subtotals and separator
+  const { html: liabHtml, subtotal: liabTotal } = buildGroups(liabGroups);
+  const { html: eqHtml, subtotal: eqTotal }     = buildGroups(equityGroup);
+  const rightTotal = liabTotal + eqTotal;
+
+  let itemsHtml = liabHtml;
+  if (liabTotal !== 0) {
+    itemsHtml += '<div class="stmt-bs-sub"><span>負債合計</span><span>' + fmtAmt(liabTotal) + '</span></div>';
+  }
+  if (liabHtml && eqHtml) {
+    itemsHtml += '<div class="stmt-liab-eq-sep"></div>';
+  }
+  itemsHtml += eqHtml;
+  if (eqTotal !== 0) {
+    itemsHtml += '<div class="stmt-bs-sub"><span>純資産合計</span><span>' + fmtAmt(eqTotal) + '</span></div>';
+  }
+
+  D.stmtBsRight.innerHTML =
+    '<div class="stmt-bs-items">' + (itemsHtml || '<div class="stmt-empty">—</div>') + '</div>' +
+    '<div class="stmt-total"><span>負債・純資産合計</span><span>' + (rightTotal ? fmtAmt(rightTotal) : '—') + '</span></div>';
 }
 
 function renderPLStatement() {
@@ -619,16 +642,16 @@ function renderPLStatement() {
   const netProfit   = opProfit - nonOpExp;
 
   function profitCls(v) { return v >= 0 ? 'profit' : 'loss'; }
-  function profitLabel(v) { return (v < 0 ? '▲' : '') + Math.abs(v) + '万'; }
+  function profitLabel(v) { return (v < 0 ? '▲' : '') + fmtNum(Math.abs(v)) + '万'; }
 
   let html = '';
 
   html += '<div class="stmt-pl-row"><span class="stmt-pl-row-name">売上高</span>' +
-    '<span class="stmt-pl-row-amount">' + rev + '万</span></div>';
+    '<span class="stmt-pl-row-amount">' + fmtNum(rev) + '万</span></div>';
 
   if (cogs !== 0) {
     html += '<div class="stmt-pl-row indent"><span class="stmt-pl-row-name">売上原価</span>' +
-      '<span class="stmt-pl-row-amount">△' + cogs + '万</span></div>';
+      '<span class="stmt-pl-row-amount">△' + fmtNum(cogs) + '万</span></div>';
   }
 
   html += '<div class="stmt-pl-subtotal"><span>売上総利益</span>' +
@@ -638,7 +661,7 @@ function renderPLStatement() {
     html += '<div class="stmt-pl-sep"></div>';
     sgaAccounts.filter(a => state.balances[a] !== 0).forEach(a => {
       html += '<div class="stmt-pl-row indent"><span class="stmt-pl-row-name">' + a + '</span>' +
-        '<span class="stmt-pl-row-amount">△' + state.balances[a] + '万</span></div>';
+        '<span class="stmt-pl-row-amount">△' + fmtNum(state.balances[a]) + '万</span></div>';
     });
   }
 
@@ -648,7 +671,7 @@ function renderPLStatement() {
   if (nonOpExp !== 0) {
     html += '<div class="stmt-pl-sep"></div>';
     html += '<div class="stmt-pl-row indent"><span class="stmt-pl-row-name">支払利息</span>' +
-      '<span class="stmt-pl-row-amount">△' + nonOpExp + '万</span></div>';
+      '<span class="stmt-pl-row-amount">△' + fmtNum(nonOpExp) + '万</span></div>';
   }
 
   html += '<div class="stmt-pl-subtotal final"><span>当期純利益</span>' +
@@ -668,9 +691,9 @@ function showSummary() {
   const pre  = net < 0 ? '▲' : '';
 
   D.summaryBody.innerHTML =
-    '<div class="summary-item"><span>総資産</span><strong>' + t.bsLeft + '万円</strong></div>' +
+    '<div class="summary-item"><span>総資産</span><strong>' + fmtNum(t.bsLeft) + '万円</strong></div>' +
     '<div class="summary-item"><span>当期純利益</span>' +
-    '<strong class="' + cls + '">' + pre + Math.abs(net) + '万円（' + word + '）</strong></div>';
+    '<strong class="' + cls + '">' + pre + fmtNum(Math.abs(net)) + '万円（' + word + '）</strong></div>';
 
   D.summaryOverlay.classList.remove('hidden');
 }
