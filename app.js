@@ -70,6 +70,9 @@ document.addEventListener('DOMContentLoaded', () => {
   D.btnReset            = document.getElementById('btn-reset');
   D.btnReplay           = document.getElementById('btn-replay');
   D.summaryBody         = document.getElementById('summary-body');
+  D.stmtBsLeft          = document.getElementById('stmt-bs-left');
+  D.stmtBsRight         = document.getElementById('stmt-bs-right');
+  D.stmtPl              = document.getElementById('stmt-pl');
 
   D.stepTotal.textContent = STEPS.length;
 
@@ -217,7 +220,10 @@ function renderChartsWithTotals(t, updateBadges) {
     if (!anyVisible) container.dataset.emptyLabel = '（まだ取引がありません）';
   });
 
-  if (updateBadges !== false) updateTotalBadges(t);
+  if (updateBadges !== false) {
+    updateTotalBadges(t);
+    renderStatements();
+  }
 }
 
 function renderCharts() {
@@ -433,6 +439,7 @@ function executeCurrentStep() {
 
   // Update badges and UI immediately with new totals
   updateTotalBadges(newTotals);
+  renderStatements();
   buildChangesTable(step.changes);
   D.panelChanges.classList.remove('hidden');
   D.explanation.textContent = step.explanation;
@@ -541,6 +548,113 @@ function buildChangesTable(changes) {
       '</td>';
     D.changesTbody.appendChild(tr);
   });
+}
+
+// ================================================================
+// Traditional financial statements (BS 勘定式 / PL 報告式)
+// ================================================================
+function renderStatements() {
+  if (!D.stmtBsLeft) return;
+  renderBSStatement();
+  renderPLStatement();
+}
+
+function fmtAmt(val) {
+  if (val === 0) return '—';
+  return (val < 0 ? '▲' : '') + Math.abs(val) + '万';
+}
+
+function renderBSStatement() {
+  const leftGroups  = [
+    { label: '【流動資産】', accounts: ['現金預金', '売掛金', '商品'] },
+    { label: '【固定資産】', accounts: ['建物付属設備', '備品', '保証金'] },
+  ];
+  const rightGroups = [
+    { label: '【流動負債】', accounts: ['買掛金', '未払金'] },
+    { label: '【固定負債】', accounts: ['長期借入金'] },
+    { label: '【純資産】',   accounts: ['資本金', '利益剰余金'] },
+  ];
+
+  function buildCol(groups) {
+    let html = '';
+    let total = 0;
+    groups.forEach(g => {
+      const nonZero = g.accounts.filter(a => state.balances[a] !== 0);
+      if (nonZero.length === 0) return;
+      html += '<div class="stmt-cat">' + g.label + '</div>';
+      nonZero.forEach(a => {
+        const v = state.balances[a];
+        const cls = v < 0 ? ' neg' : '';
+        html += '<div class="stmt-row">' +
+          '<span class="stmt-row-name">' + a + '</span>' +
+          '<span class="stmt-row-amount' + cls + '">' + fmtAmt(v) + '</span>' +
+          '</div>';
+        total += v;
+      });
+    });
+    if (total !== 0) {
+      html += '<div class="stmt-total"><span>合計</span><span>' + total + '万</span></div>';
+    }
+    return html || '<div class="stmt-empty">—</div>';
+  }
+
+  D.stmtBsLeft.innerHTML  = buildCol(leftGroups);
+  D.stmtBsRight.innerHTML = buildCol(rightGroups);
+}
+
+function renderPLStatement() {
+  const rev = state.balances['売上'] || 0;
+  const cogs = state.balances['売上原価'] || 0;
+  const sgaAccounts = ['給与手当', '広告宣伝費', '地代家賃', '減価償却費'];
+  const sga = sgaAccounts.reduce((s, a) => s + (state.balances[a] || 0), 0);
+  const nonOpExp = state.balances['支払利息'] || 0;
+
+  if (rev === 0 && cogs === 0 && sga === 0 && nonOpExp === 0) {
+    D.stmtPl.innerHTML = '<div class="stmt-empty">（まだ収益・費用がありません）</div>';
+    return;
+  }
+
+  const grossProfit = rev - cogs;
+  const opProfit    = grossProfit - sga;
+  const netProfit   = opProfit - nonOpExp;
+
+  function profitCls(v) { return v >= 0 ? 'profit' : 'loss'; }
+  function profitLabel(v) { return (v < 0 ? '▲' : '') + Math.abs(v) + '万'; }
+
+  let html = '';
+
+  html += '<div class="stmt-pl-row"><span class="stmt-pl-row-name">売上高</span>' +
+    '<span class="stmt-pl-row-amount">' + rev + '万</span></div>';
+
+  if (cogs !== 0) {
+    html += '<div class="stmt-pl-row indent"><span class="stmt-pl-row-name">売上原価</span>' +
+      '<span class="stmt-pl-row-amount">△' + cogs + '万</span></div>';
+  }
+
+  html += '<div class="stmt-pl-subtotal"><span>売上総利益</span>' +
+    '<span class="' + profitCls(grossProfit) + '">' + profitLabel(grossProfit) + '</span></div>';
+
+  if (sga !== 0) {
+    html += '<div class="stmt-pl-sep"></div>';
+    sgaAccounts.filter(a => state.balances[a] !== 0).forEach(a => {
+      html += '<div class="stmt-pl-row indent"><span class="stmt-pl-row-name">' + a + '</span>' +
+        '<span class="stmt-pl-row-amount">△' + state.balances[a] + '万</span></div>';
+    });
+  }
+
+  html += '<div class="stmt-pl-subtotal"><span>営業利益</span>' +
+    '<span class="' + profitCls(opProfit) + '">' + profitLabel(opProfit) + '</span></div>';
+
+  if (nonOpExp !== 0) {
+    html += '<div class="stmt-pl-sep"></div>';
+    html += '<div class="stmt-pl-row indent"><span class="stmt-pl-row-name">支払利息</span>' +
+      '<span class="stmt-pl-row-amount">△' + nonOpExp + '万</span></div>';
+  }
+
+  html += '<div class="stmt-pl-subtotal final"><span>当期純利益</span>' +
+    '<span class="' + profitCls(netProfit) + '">' + profitLabel(netProfit) + '</span></div>';
+
+  D.stmtPl.innerHTML = html;
 }
 
 // ================================================================
