@@ -559,7 +559,7 @@ html, body {
    RIGHT-2: FINANCIAL STATEMENTS (traditional style)
 ================================================================ */
 #statements {
-  width: 320px;
+  width: 380px;
   flex-shrink: 0;
   background: #fff;
   border-left: 2px solid #e0e4eb;
