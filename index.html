@@ -30,8 +30,16 @@
 
       <p id="panel-description"></p>
 
-      <div id="panel-changes">
-        <div class="panel-section-title">変動する勘定科目</div>
+      <!-- ボタン：問いかけの直下 -->
+      <div id="panel-buttons">
+        <button id="btn-execute" class="btn btn-execute">実行する</button>
+        <button id="btn-next"    class="btn btn-next hidden">次の取引へ →</button>
+        <button id="btn-prev"    class="btn btn-prev hidden">← 前の取引に戻る</button>
+      </div>
+
+      <!-- 勘定科目の動き（実行後に表示） -->
+      <div id="panel-changes" class="hidden">
+        <div class="panel-section-title">変動した勘定科目</div>
         <table id="changes-table">
           <thead>
             <tr><th>勘定科目</th><th>分類</th><th>変化</th></tr>
@@ -40,11 +48,10 @@
         </table>
       </div>
 
-      <div id="panel-explanation" class="hidden"></div>
-
-      <div id="panel-buttons">
-        <button id="btn-execute" class="btn btn-execute">実行する</button>
-        <button id="btn-next"    class="btn btn-next hidden">次のステップへ →</button>
+      <!-- 解説折り畳み（実行後に表示） -->
+      <div id="panel-explain-section" class="hidden">
+        <button id="btn-explain" class="btn-explain">解説を見る ▼</button>
+        <div id="panel-explanation" class="hidden"></div>
       </div>
 
     </div><!-- /panel -->
@@ -104,7 +111,7 @@
     <h1>カフェ経営<br>会計シミュレーション</h1>
     <p>カフェの開業から運営・決算までの取引を通して、<br>BSとPLの動きをリアルタイムで体験しましょう。</p>
     <ul class="feature-list">
-      <li>📊 15の取引ステップ</li>
+      <li>📊 8の取引ステップ</li>
       <li>⚡ 意思決定→グラフが即変動</li>
       <li>💡 各取引の会計解説付き</li>
     </ul>
