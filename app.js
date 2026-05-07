@@ -146,8 +146,18 @@ function computeBlockHeights(colKey, scale, maxH) {
 
   // Split into blocks that need a minimum-height boost vs. normal blocks
   const boostedEntries = entries.filter(e => e.val !== 0 && e.rawH < MIN_BLOCK_PX);
-  const normalEntries  = entries.filter(e => e.val === 0  || e.rawH >= MIN_BLOCK_PX);
 
+  // No small accounts → use raw proportional heights directly.
+  // This preserves the PL left/right height difference (profit vs. loss),
+  // and ensures the scale-normalization animation trick works correctly.
+  if (boostedEntries.length === 0) {
+    const result = {};
+    entries.forEach(e => { result[e.name] = e.rawH; });
+    return result;
+  }
+
+  // Small non-zero accounts need boosting; scale large accounts down to fit.
+  const normalEntries = entries.filter(e => e.val === 0 || e.rawH >= MIN_BLOCK_PX);
   const boostedTotal  = boostedEntries.length * MIN_BLOCK_PX;
   const normalRawSum  = normalEntries.reduce((s, e) => s + e.rawH, 0);
   const availableH    = Math.max(0, maxH - boostedTotal);
