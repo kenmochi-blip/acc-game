@@ -309,8 +309,9 @@ function highlightBlocksStaggered(names) {
 }
 
 // Run the forward animation (old→new balances) at the provided scale.
-// Disables transitions first, snaps to prev state, then re-enables + staggers.
-function runForwardAnimation(prevBal, newBal, newTotals, changedAccounts, onComplete) {
+// opts.showStmtOnStart: if true, update statements to old values at the start
+// (used by replay so the user sees before→after in the statements panel).
+function runForwardAnimation(prevBal, newBal, newTotals, changedAccounts, onComplete, opts) {
   const allBlocks = document.querySelectorAll('.account-block');
 
   // 1. Disable transitions, snap to starting heights (old balances at new scale)
@@ -320,6 +321,7 @@ function runForwardAnimation(prevBal, newBal, newTotals, changedAccounts, onComp
   });
   state.balances = {...prevBal};
   renderChartsWithTotals(newTotals, false);
+  if (opts && opts.showStmtOnStart) renderStatements(); // show "before" values in statements
 
   // 2. Two rAF to flush style changes, then animate to new state
   requestAnimationFrame(() => {
@@ -451,7 +453,8 @@ function executeCurrentStep() {
   runForwardAnimation(state.prevBalances, newBalances, newTotals, state.changedAccounts, () => {
     D.btnReplay.classList.remove('hidden');
     if (state.currentStep > 1) D.btnPrev.classList.remove('hidden');
-    renderStatements(); // refresh with confirmed final state
+    renderStatements();
+    highlightStatementRows(state.changedAccounts);
   });
 }
 
@@ -516,7 +519,8 @@ function replayHighlight() {
     D.btnReplay.classList.remove('hidden');
     if (state.currentStep > 1) D.btnPrev.classList.remove('hidden');
     renderStatements();
-  });
+    highlightStatementRows(state.changedAccounts);
+  }, { showStmtOnStart: true });
 }
 
 // ================================================================
@@ -548,6 +552,53 @@ function buildChangesTable(changes) {
       '</td>';
     D.changesTbody.appendChild(tr);
   });
+}
+
+// ================================================================
+// Statement row highlight helpers
+// ================================================================
+function glowStmtEl(el) {
+  if (!el) return;
+  el.classList.remove('stmt-highlighted');
+  void el.offsetWidth;
+  el.classList.add('stmt-highlighted');
+}
+
+function highlightStatementRows(changedAccounts) {
+  if (!D.stmtBsLeft) return;
+  const sorted = sortForAnimation(changedAccounts);
+
+  // Highlight each changed account row with stagger matching chart blocks
+  sorted.forEach((name, i) => {
+    setTimeout(() => {
+      glowStmtEl(document.querySelector('#statements [data-account="' + name + '"]'));
+    }, i * STAGGER_MS);
+  });
+
+  // Highlight totals/subtotals after individual rows settle
+  const delay = sorted.length * STAGGER_MS + 100;
+  setTimeout(() => {
+    const changed   = new Set(changedAccounts);
+    const assetSet  = new Set(['現金預金','売掛金','商品','建物付属設備','備品','保証金']);
+    const liabSet   = new Set(['買掛金','未払金','長期借入金']);
+    const equitySet = new Set(['資本金','利益剰余金']);
+    const plSet     = new Set(['売上','売上原価','給与手当','広告宣伝費','地代家賃','減価償却費','支払利息']);
+
+    const assetCh  = [...changed].some(a => assetSet.has(a));
+    const liabCh   = [...changed].some(a => liabSet.has(a));
+    const equityCh = [...changed].some(a => equitySet.has(a));
+    const plCh     = [...changed].some(a => plSet.has(a));
+
+    if (assetCh)              glowStmtEl(document.querySelector('[data-section="asset-total"]'));
+    if (liabCh)               glowStmtEl(document.querySelector('[data-section="liab-total"]'));
+    if (equityCh)             glowStmtEl(document.querySelector('[data-section="equity-total"]'));
+    if (assetCh || liabCh || equityCh) glowStmtEl(document.querySelector('[data-section="bs-grand-total"]'));
+    if (plCh) {
+      if (changed.has('売上') || changed.has('売上原価')) glowStmtEl(document.querySelector('[data-section="gross-profit"]'));
+      glowStmtEl(document.querySelector('[data-section="op-profit"]'));
+      glowStmtEl(document.querySelector('[data-section="net-profit"]'));
+    }
+  }, delay);
 }
 
 // ================================================================
@@ -587,7 +638,7 @@ function renderBSStatement() {
       html += '<div class="stmt-cat">' + g.label + '</div>';
       nonZero.forEach(a => {
         const v = state.balances[a];
-        html += '<div class="stmt-row">' +
+        html += '<div class="stmt-row" data-account="' + a + '">' +
           '<span class="stmt-row-name">' + a + '</span>' +
           '<span class="stmt-row-amount' + (v < 0 ? ' neg' : '') + '">' + fmtAmt(v) + '</span>' +
           '</div>';
@@ -601,7 +652,7 @@ function renderBSStatement() {
   const { html: assetHtml, subtotal: assetTotal } = buildGroups(assetGroups);
   D.stmtBsLeft.innerHTML =
     '<div class="stmt-bs-items">' + (assetHtml || '<div class="stmt-empty">—</div>') + '</div>' +
-    '<div class="stmt-total"><span>資産合計</span><span>' + (assetTotal ? fmtAmt(assetTotal) : '—') + '</span></div>';
+    '<div class="stmt-total" data-section="asset-total"><span>資産合計</span><span>' + (assetTotal ? fmtAmt(assetTotal) : '—') + '</span></div>';
 
   // Right: liabilities + equity, with subtotals and separator
   const { html: liabHtml, subtotal: liabTotal } = buildGroups(liabGroups);
@@ -610,19 +661,19 @@ function renderBSStatement() {
 
   let itemsHtml = liabHtml;
   if (liabTotal !== 0) {
-    itemsHtml += '<div class="stmt-bs-sub"><span>負債合計</span><span>' + fmtAmt(liabTotal) + '</span></div>';
+    itemsHtml += '<div class="stmt-bs-sub" data-section="liab-total"><span>負債合計</span><span>' + fmtAmt(liabTotal) + '</span></div>';
   }
   if (liabHtml && eqHtml) {
     itemsHtml += '<div class="stmt-liab-eq-sep"></div>';
   }
   itemsHtml += eqHtml;
   if (eqTotal !== 0) {
-    itemsHtml += '<div class="stmt-bs-sub"><span>純資産合計</span><span>' + fmtAmt(eqTotal) + '</span></div>';
+    itemsHtml += '<div class="stmt-bs-sub" data-section="equity-total"><span>純資産合計</span><span>' + fmtAmt(eqTotal) + '</span></div>';
   }
 
   D.stmtBsRight.innerHTML =
     '<div class="stmt-bs-items">' + (itemsHtml || '<div class="stmt-empty">—</div>') + '</div>' +
-    '<div class="stmt-total"><span>負債・純資産合計</span><span>' + (rightTotal ? fmtAmt(rightTotal) : '—') + '</span></div>';
+    '<div class="stmt-total" data-section="bs-grand-total"><span>負債・純資産合計</span><span>' + (rightTotal ? fmtAmt(rightTotal) : '—') + '</span></div>';
 }
 
 function renderPLStatement() {
@@ -646,35 +697,35 @@ function renderPLStatement() {
 
   let html = '';
 
-  html += '<div class="stmt-pl-row"><span class="stmt-pl-row-name">売上高</span>' +
+  html += '<div class="stmt-pl-row" data-account="売上"><span class="stmt-pl-row-name">売上高</span>' +
     '<span class="stmt-pl-row-amount">' + fmtNum(rev) + '万</span></div>';
 
   if (cogs !== 0) {
-    html += '<div class="stmt-pl-row indent"><span class="stmt-pl-row-name">売上原価</span>' +
+    html += '<div class="stmt-pl-row indent" data-account="売上原価"><span class="stmt-pl-row-name">売上原価</span>' +
       '<span class="stmt-pl-row-amount">△' + fmtNum(cogs) + '万</span></div>';
   }
 
-  html += '<div class="stmt-pl-subtotal"><span>売上総利益</span>' +
+  html += '<div class="stmt-pl-subtotal" data-section="gross-profit"><span>売上総利益</span>' +
     '<span class="' + profitCls(grossProfit) + '">' + profitLabel(grossProfit) + '</span></div>';
 
   if (sga !== 0) {
     html += '<div class="stmt-pl-sep"></div>';
     sgaAccounts.filter(a => state.balances[a] !== 0).forEach(a => {
-      html += '<div class="stmt-pl-row indent"><span class="stmt-pl-row-name">' + a + '</span>' +
+      html += '<div class="stmt-pl-row indent" data-account="' + a + '"><span class="stmt-pl-row-name">' + a + '</span>' +
         '<span class="stmt-pl-row-amount">△' + fmtNum(state.balances[a]) + '万</span></div>';
     });
   }
 
-  html += '<div class="stmt-pl-subtotal"><span>営業利益</span>' +
+  html += '<div class="stmt-pl-subtotal" data-section="op-profit"><span>営業利益</span>' +
     '<span class="' + profitCls(opProfit) + '">' + profitLabel(opProfit) + '</span></div>';
 
   if (nonOpExp !== 0) {
     html += '<div class="stmt-pl-sep"></div>';
-    html += '<div class="stmt-pl-row indent"><span class="stmt-pl-row-name">支払利息</span>' +
+    html += '<div class="stmt-pl-row indent" data-account="支払利息"><span class="stmt-pl-row-name">支払利息</span>' +
       '<span class="stmt-pl-row-amount">△' + fmtNum(nonOpExp) + '万</span></div>';
   }
 
-  html += '<div class="stmt-pl-subtotal final"><span>当期純利益</span>' +
+  html += '<div class="stmt-pl-subtotal final" data-section="net-profit"><span>当期純利益</span>' +
     '<span class="' + profitCls(netProfit) + '">' + profitLabel(netProfit) + '</span></div>';
 
   D.stmtPl.innerHTML = html;
