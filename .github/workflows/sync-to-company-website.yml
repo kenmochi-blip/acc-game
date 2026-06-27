@@ -1,0 +1,38 @@
+name: Sync cafe-sim to company-website
+
+on:
+  push:
+    branches:
+      - claude/business-decision-visualizer-XUSYy
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout acc-game
+        uses: actions/checkout@v4
+        with:
+          path: acc-game
+
+      - name: Checkout company-website
+        uses: actions/checkout@v4
+        with:
+          repository: kenmochi-blip/company-website
+          token: ${{ secrets.COMPANY_WEBSITE_TOKEN }}
+          path: company-website
+
+      - name: Copy files to cafe-sim
+        run: |
+          cp acc-game/index.html company-website/cafe-sim/
+          cp acc-game/style.css company-website/cafe-sim/
+          cp acc-game/app.js company-website/cafe-sim/
+          cp acc-game/data.js company-website/cafe-sim/
+
+      - name: Commit and push
+        run: |
+          cd company-website
+          git config user.email "kenmochi@smartandsmooth.com"
+          git config user.name "kenmochi-blip"
+          git add cafe-sim/
+          git diff --staged --quiet || git commit -m "Sync cafe-sim from acc-game"
+          git push origin main
