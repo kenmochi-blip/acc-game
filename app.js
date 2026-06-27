@@ -656,7 +656,31 @@ function renderBSStatement() {
 
   // Right: liabilities + equity, with subtotals and separator
   const { html: liabHtml, subtotal: liabTotal } = buildGroups(liabGroups);
-  const { html: eqHtml, subtotal: eqTotal }     = buildGroups(equityGroup);
+
+  // 純資産: 利益剰余金は残高0でも資本金が存在する場合は表示する
+  function buildEquityGroup() {
+    const capitalVal  = state.balances['資本金'] || 0;
+    const retainedVal = state.balances['利益剰余金'] || 0;
+    if (capitalVal === 0 && retainedVal === 0) return { html: '', subtotal: 0 };
+    let html = '<div class="stmt-cat">【純資産】</div>';
+    let subtotal = 0;
+    if (capitalVal !== 0) {
+      html += '<div class="stmt-row" data-account="資本金">' +
+        '<span class="stmt-row-name">資本金</span>' +
+        '<span class="stmt-row-amount">' + fmtAmt(capitalVal) + '</span></div>';
+      subtotal += capitalVal;
+    }
+    // 利益剰余金: 資本金がある場合は0でも表示
+    if (capitalVal !== 0 || retainedVal !== 0) {
+      const dispAmt = retainedVal === 0 ? '0万' : fmtAmt(retainedVal);
+      html += '<div class="stmt-row" data-account="利益剰余金">' +
+        '<span class="stmt-row-name">利益剰余金</span>' +
+        '<span class="stmt-row-amount' + (retainedVal < 0 ? ' neg' : '') + '">' + dispAmt + '</span></div>';
+      subtotal += retainedVal;
+    }
+    return { html, subtotal };
+  }
+  const { html: eqHtml, subtotal: eqTotal } = buildEquityGroup();
   const rightTotal = liabTotal + eqTotal;
 
   let itemsHtml = liabHtml;
