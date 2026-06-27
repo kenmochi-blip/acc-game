@@ -670,8 +670,8 @@ function renderBSStatement() {
         '<span class="stmt-row-amount">' + fmtAmt(capitalVal) + '</span></div>';
       subtotal += capitalVal;
     }
-    // 利益剰余金: 資本金がある場合は0でも表示
-    if (capitalVal !== 0 || retainedVal !== 0) {
+    // 利益剰余金: 取引⑫以降は0でも表示、それ以前は0なら非表示
+    if (retainedVal !== 0 || (capitalVal !== 0 && state.currentStep >= 12)) {
       const dispAmt = retainedVal === 0 ? '0万' : fmtAmt(retainedVal);
       html += '<div class="stmt-row" data-account="利益剰余金">' +
         '<span class="stmt-row-name">利益剰余金</span>' +
