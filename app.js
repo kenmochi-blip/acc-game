@@ -164,7 +164,7 @@ function computeBlockHeights(colKey, scale, maxH) {
   const boostedTotal  = boostedEntries.length * MIN_BLOCK_PX;
   const normalRawSum  = normalEntries.reduce((s, e) => s + e.rawH, 0);
   const availableH    = Math.max(0, maxH - boostedTotal);
-  const scaleFactor   = normalRawSum > 0 ? availableH / normalRawSum : 1;
+  const scaleFactor   = normalRawSum > 0 ? Math.min(1, availableH / normalRawSum) : 1;
 
   const boostedSet = new Set(boostedEntries.map(e => e.name));
   const result = {};
