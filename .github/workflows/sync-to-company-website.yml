@@ -28,6 +28,7 @@ jobs:
           cp acc-game/app.js company-website/cafe-sim/
           cp acc-game/data.js company-website/cafe-sim/
           cp acc-game/ogp.png company-website/cafe-sim/
+          cp acc-game/ogp.jpg company-website/cafe-sim/
 
       - name: Commit and push
         run: |
