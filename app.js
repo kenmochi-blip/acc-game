@@ -73,6 +73,8 @@ document.addEventListener('DOMContentLoaded', () => {
   D.stmtBsLeft          = document.getElementById('stmt-bs-left');
   D.stmtBsRight         = document.getElementById('stmt-bs-right');
   D.stmtPl              = document.getElementById('stmt-pl');
+  D.tutorialOverlay     = document.getElementById('tutorial-overlay');
+  D.btnTutorialStart    = document.getElementById('btn-tutorial-start');
 
   D.stepTotal.textContent = STEPS.length;
 
@@ -80,6 +82,7 @@ document.addEventListener('DOMContentLoaded', () => {
   renderCharts();
 
   D.btnStart.addEventListener('click', startApp);
+  D.btnTutorialStart.addEventListener('click', startGame);
   D.btnExecute.addEventListener('click', executeCurrentStep);
   D.btnNext.addEventListener('click', advanceStep);
   D.btnPrev.addEventListener('click', goToPrevStep);
@@ -344,6 +347,11 @@ function runForwardAnimation(prevBal, newBal, newTotals, changedAccounts, onComp
 // ================================================================
 function startApp() {
   D.introOverlay.classList.add('hidden');
+  D.tutorialOverlay.classList.remove('hidden');
+}
+
+function startGame() {
+  D.tutorialOverlay.classList.add('hidden');
   loadStep(1);
 }
 

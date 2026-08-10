@@ -568,6 +568,58 @@ html, body {
 .loss-text   { color: #c62828; }
 
 /* ================================================================
+   TUTORIAL OVERLAY
+================================================================ */
+.tutorial-card {
+  max-width: 440px !important;
+  text-align: left !important;
+}
+
+.tutorial-list {
+  list-style: none;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin: 4px 0;
+}
+
+.tutorial-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  font-size: 0.84rem;
+  color: #444;
+  line-height: 1.65;
+  background: #f5f7fb;
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+
+.tutorial-list li strong {
+  display: block;
+  font-size: 0.88rem;
+  color: #12172b;
+  margin-bottom: 2px;
+}
+
+.tutorial-num {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  background: #1565C0;
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 800;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  letter-spacing: 0.03em;
+  margin-top: 1px;
+}
+
+/* ================================================================
    RIGHT-2: FINANCIAL STATEMENTS (traditional style)
 ================================================================ */
 #statements {
