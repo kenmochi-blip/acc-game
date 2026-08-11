@@ -807,7 +807,7 @@ function initResizeHandles() {
         target.style.width = newW + 'px';
         // 幅に比例してパネル内フォントをスケール
         const scale = newW / baseWidth;
-        target.style.fontSize = (scale * 100).toFixed(1) + '%';
+        target.style.fontSize = (scale * 17.5).toFixed(2) + 'px';
       }
       function onUp() {
         handle.classList.remove('dragging');
