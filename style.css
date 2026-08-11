@@ -3,6 +3,10 @@
 ================================================================ */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+html {
+  font-size: 17.5px;
+}
+
 html, body {
   height: 100%;
   font-family: 'Helvetica Neue', Arial, 'Hiragino Sans', 'Noto Sans JP', sans-serif;
@@ -75,10 +79,27 @@ html, body {
 }
 
 /* ================================================================
+   COLUMN RESIZE HANDLES
+================================================================ */
+.col-resize-handle {
+  width: 5px;
+  flex-shrink: 0;
+  background: #e0e4eb;
+  cursor: col-resize;
+  transition: background 0.15s;
+  position: relative;
+  z-index: 10;
+}
+.col-resize-handle:hover,
+.col-resize-handle.dragging {
+  background: #4FC3F7;
+}
+
+/* ================================================================
    LEFT PANEL (テキスト・操作)
 ================================================================ */
 #panel {
-  width: 340px;
+  width: 380px;
   flex-shrink: 0;
   background: #fff;
   border-right: 2px solid #e0e4eb;
@@ -623,7 +644,7 @@ html, body {
    RIGHT-2: FINANCIAL STATEMENTS (traditional style)
 ================================================================ */
 #statements {
-  width: 380px;
+  width: 440px;
   flex-shrink: 0;
   background: #fff;
   border-left: 2px solid #e0e4eb;

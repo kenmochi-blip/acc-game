@@ -81,6 +81,8 @@ document.addEventListener('DOMContentLoaded', () => {
   buildChartDOM();
   renderCharts();
 
+  initResizeHandles();
+
   D.btnStart.addEventListener('click', startApp);
   D.btnTutorialStart.addEventListener('click', startGame);
   D.btnExecute.addEventListener('click', executeCurrentStep);
@@ -779,6 +781,45 @@ function showSummary() {
     '<strong class="' + cls + '">' + pre + fmtNum(Math.abs(net)) + '万円（' + word + '）</strong></div>';
 
   D.summaryOverlay.classList.remove('hidden');
+}
+
+// ================================================================
+// Column resize handles
+// ================================================================
+function initResizeHandles() {
+  const panel      = document.getElementById('panel');
+  const statements = document.getElementById('statements');
+  const leftHandle = document.getElementById('resize-left');
+  const rightHandle = document.getElementById('resize-right');
+
+  function setupDrag(handle, target, reversed) {
+    handle.addEventListener('mousedown', function(e) {
+      const startX = e.clientX;
+      const startW = target.offsetWidth;
+      handle.classList.add('dragging');
+      document.body.style.cursor    = 'col-resize';
+      document.body.style.userSelect = 'none';
+
+      function onMove(e) {
+        const dx  = e.clientX - startX;
+        const newW = Math.min(600, Math.max(240, startW + (reversed ? -dx : dx)));
+        target.style.width = newW + 'px';
+      }
+      function onUp() {
+        handle.classList.remove('dragging');
+        document.body.style.cursor    = '';
+        document.body.style.userSelect = '';
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup',   onUp);
+      }
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup',   onUp);
+      e.preventDefault();
+    });
+  }
+
+  if (leftHandle && panel)      setupDrag(leftHandle, panel,      false);
+  if (rightHandle && statements) setupDrag(rightHandle, statements, true);
 }
 
 // ================================================================
