@@ -662,6 +662,7 @@ html, body {
   gap: 0;
   overflow-y: auto;
   padding: 12px 14px 20px;
+  font-size: 1.18em;
 }
 
 .stmt-section {
