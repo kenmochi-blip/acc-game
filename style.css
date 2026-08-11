@@ -630,7 +630,13 @@ html, body {
   display: block;
   font-size: 0.95em;
   color: #12172b;
-  margin-bottom: 2px;
+  margin-bottom: 4px;
+}
+
+.tutorial-list li p {
+  margin: 0;
+  font-size: 0.9em;
+  line-height: 1.6;
 }
 
 .tutorial-num {
