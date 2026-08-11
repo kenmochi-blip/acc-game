@@ -560,7 +560,7 @@ html, body {
   line-height: 1.35;
 }
 
-.overlay-card h2 { font-size: 1.25em; color: #12172b; }
+.overlay-card h2 { font-size: 1.45em; color: #12172b; }
 
 .overlay-card p {
   font-size: 0.85em;
@@ -618,7 +618,7 @@ html, body {
   display: flex;
   align-items: flex-start;
   gap: 14px;
-  font-size: 0.84em;
+  font-size: 0.95em;
   color: #444;
   line-height: 1.65;
   background: #f5f7fb;
@@ -628,7 +628,7 @@ html, body {
 
 .tutorial-list li strong {
   display: block;
-  font-size: 0.88em;
+  font-size: 0.95em;
   color: #12172b;
   margin-bottom: 2px;
 }
