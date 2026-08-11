@@ -824,6 +824,10 @@ function initResizeHandles() {
 
   if (leftHandle  && panel)      setupDrag(leftHandle,  panel,      false, 380);
   if (rightHandle && statements) setupDrag(rightHandle, statements, true,  440);
+
+  // デフォルト幅でのフォントサイズをJSで初期化（CSSのem値と一致させる）
+  if (panel)      panel.style.fontSize      = '17.5px';
+  if (statements) statements.style.fontSize = '17.5px';
 }
 
 // ================================================================
