@@ -496,7 +496,7 @@ html, body {
 /* ================================================================
    OVERLAYS
 ================================================================ */
-#intro-overlay, #summary-overlay {
+#intro-overlay, #summary-overlay, #tutorial-overlay {
   position: fixed;
   inset: 0;
   background: rgba(18,23,43,0.88);
