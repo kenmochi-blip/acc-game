@@ -787,27 +787,31 @@ function showSummary() {
 // Column resize handles
 // ================================================================
 function initResizeHandles() {
-  const panel      = document.getElementById('panel');
-  const statements = document.getElementById('statements');
-  const leftHandle = document.getElementById('resize-left');
+  const panel       = document.getElementById('panel');
+  const statements  = document.getElementById('statements');
+  const leftHandle  = document.getElementById('resize-left');
   const rightHandle = document.getElementById('resize-right');
 
-  function setupDrag(handle, target, reversed) {
+  // baseWidth: デフォルト幅（フォントスケールの基準）
+  function setupDrag(handle, target, reversed, baseWidth) {
     handle.addEventListener('mousedown', function(e) {
       const startX = e.clientX;
       const startW = target.offsetWidth;
       handle.classList.add('dragging');
-      document.body.style.cursor    = 'col-resize';
+      document.body.style.cursor     = 'col-resize';
       document.body.style.userSelect = 'none';
 
       function onMove(e) {
-        const dx  = e.clientX - startX;
-        const newW = Math.min(600, Math.max(240, startW + (reversed ? -dx : dx)));
+        const dx   = e.clientX - startX;
+        const newW = Math.min(640, Math.max(240, startW + (reversed ? -dx : dx)));
         target.style.width = newW + 'px';
+        // 幅に比例してパネル内フォントをスケール
+        const scale = newW / baseWidth;
+        target.style.fontSize = (scale * 100).toFixed(1) + '%';
       }
       function onUp() {
         handle.classList.remove('dragging');
-        document.body.style.cursor    = '';
+        document.body.style.cursor     = '';
         document.body.style.userSelect = '';
         document.removeEventListener('mousemove', onMove);
         document.removeEventListener('mouseup',   onUp);
@@ -818,8 +822,8 @@ function initResizeHandles() {
     });
   }
 
-  if (leftHandle && panel)      setupDrag(leftHandle, panel,      false);
-  if (rightHandle && statements) setupDrag(rightHandle, statements, true);
+  if (leftHandle  && panel)      setupDrag(leftHandle,  panel,      false, 380);
+  if (rightHandle && statements) setupDrag(rightHandle, statements, true,  440);
 }
 
 // ================================================================
