@@ -639,6 +639,35 @@ html, body {
   line-height: 1.6;
 }
 
+.tutorial-pdf-hint {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  background: #f0f7ff;
+  border: 1px solid #bcd6f5;
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 0.85em;
+  color: #444;
+  line-height: 1.6;
+  width: 100%;
+}
+
+.tutorial-pdf-icon {
+  flex-shrink: 0;
+  font-size: 1.1em;
+  margin-top: 1px;
+}
+
+.tutorial-pdf-link {
+  color: #1565C0;
+  font-weight: 700;
+  text-decoration: underline;
+}
+.tutorial-pdf-link:hover {
+  color: #0d47a1;
+}
+
 .tutorial-num {
   flex-shrink: 0;
   width: 30px;
